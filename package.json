@@ -1,0 +1,14 @@
+{
+  "name": "ploon",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "An endless little flying game. Vanilla JS, Three.js, and Node.js.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  },
+  "dependencies": { "three": "^0.181.1" },
+  "engines": { "node": ">=22" }
+}

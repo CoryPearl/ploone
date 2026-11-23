@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#faf7ef">
+  <meta name="description" content="Fly eight planes through an endless world. Play the daily race or explore in free flight.">
+  <title>Ploon — a little plane, an endless sky</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three/addons/"}}</script>
+  <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+  <canvas id="world" aria-label="Ploon 3D flight world"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+  <div id="loading" class="loading-screen">
+    <span class="wordmark">ploon<span>.</span></span>
+    <div class="loading-track"><span></span></div>
+    <p id="loading-message">Loading…</p>
+  </div>
+
+  <header id="header" class="header">
+    <nav class="header-actions" aria-label="Game options">
+      <button id="help-button" class="utility-button">Controls</button>
+      <button id="settings-button" class="utility-button">Settings</button>
+    </nav>
+  </header>
+
+  <main id="menu" class="menu">
+    <section class="intro" aria-labelledby="home-title">
+      <h1 id="home-title" class="wordmark">ploon<span>.</span></h1>
+      <p class="intro-copy">A little plane. An endless sky.</p>
+      <button id="hangar-button" class="aircraft-picker" aria-haspopup="dialog">
+        <span><strong id="plane-name">F-16</strong><small id="plane-full-name">Fighting Falcon</small></span>
+        <span class="change-label">Change</span>
+      </button>
+      <p id="plane-ranking-note" class="plane-ranking-note">F-16 races have their own Top 10.</p>
+      <div class="pilot-field">
+        <label for="pilot-name">Pilot name</label>
+        <input id="pilot-name" type="text" maxlength="20" placeholder="Automatic" autocomplete="nickname" spellcheck="false" aria-describedby="pilot-save-status">
+        <small id="pilot-save-status" role="status">Saved on this device.</small>
+      </div>
+      <div class="flight-actions">
+        <button id="daily-button" class="button primary"><span id="launch-label">Daily race</span><span aria-hidden="true">↗</span></button>
+        <button id="free-button" class="button secondary"><span>Free flight</span><small id="free-note">No ceiling</small></button>
+      </div>
+      <button id="seed-button" class="custom-link">Custom map</button>
+      <section id="course-preview" class="course-preview" aria-labelledby="course-label">
+        <div class="course-heading"><h2 id="course-label">Today's course</h2><span id="daily-date"></span></div>
+        <div class="map-preview"><canvas id="map-preview" width="640" height="500" aria-label="Open mountain terrain with a start and a single finish"></canvas></div>
+        <div class="course-rules"><span id="course-landscape">Find your fastest line</span><span id="course-ceiling"></span></div>
+        <div class="personal-best"><span id="menu-best-label">F-16 best</span><div class="best-standing"><strong id="menu-best">—</strong><span id="menu-rank" class="rank-badge">Unranked</span></div></div>
+      </section>
+    </section>
+    <aside id="leaderboard" class="leaderboard" aria-labelledby="leaderboard-title">
+      <div class="leaderboard-heading"><select id="leaderboard-aircraft" aria-label="Aircraft for Top 10"></select><h2 id="leaderboard-title">Top 10</h2></div>
+      <p id="leaderboard-course" class="leaderboard-course">Today's course</p>
+      <ol id="leaderboard-list" class="leaderboard-list" aria-label="Fastest race times" hidden></ol>
+      <p id="leaderboard-status" class="leaderboard-status" role="status">Loading times…</p>
+      <button id="leaderboard-refresh" class="leaderboard-refresh">Refresh</button>
+    </aside>
+  </main>
+
+  <section id="hud" class="hud" hidden aria-label="Flight instruments">
+    <div id="cockpit-shell" class="cockpit-shell" hidden aria-label="Cockpit instrument panel">
+      <div class="cockpit-readouts">
+        <div><span id="cockpit-clearance-label">AGL · ft</span><strong id="cockpit-clearance">0</strong></div>
+        <div><span id="cockpit-climb-label">Climb · ft/min</span><strong id="cockpit-climb">0</strong></div>
+        <div><span>Power</span><strong id="cockpit-power">52%</strong></div>
+        <div><span>Navigation</span><strong id="cockpit-nav">—</strong></div>
+      </div>
+    </div>
+    <canvas id="flight-display" class="flight-display" aria-label="Green flight display with airspeed in mph, altitude in feet, heading, pitch ladder, and flight path marker" hidden></canvas>
+    <div class="hud-top">
+      <button id="pause-button" class="hud-pause" aria-label="Pause flight">Pause <kbd>Esc</kbd></button>
+      <div class="hud-mode"><span id="hud-mode">Daily race</span><strong id="hud-aircraft">F-16</strong></div>
+      <div id="race-clock" class="race-time"><span id="hud-timer">00:00.00</span><small id="hud-split"></small></div>
+      <div class="gate-count"><span id="hud-gates"></span><small id="hud-target-distance"></small><small id="hud-ceiling"></small></div>
+    </div>
+    <div id="gate-guide" class="gate-guide" hidden><span>◎</span><small>Finish</small></div>
+    <div id="countdown" class="countdown" hidden><span>3</span><small>Ready</small></div>
+    <div id="flight-notice" class="flight-notice" aria-live="polite"></div>
+    <div id="stall-status" class="stall-status" role="status" hidden><strong id="stall-title">Low airspeed</strong><small id="stall-detail">Ease the turn and keep your speed</small></div>
+    <div class="handling-status">
+      <div id="landing-info" class="landing-info" hidden></div>
+      <div id="burner-chip" class="handling-chip" hidden><kbd>Shift</kbd><span id="burner-status">Afterburner</span></div>
+      <div id="drift-chip" class="handling-chip" hidden><kbd>Space</kbd><span id="drift-status">Air drift</span></div>
+    </div>
+    <div class="hud-bottom">
+      <div class="instruments">
+        <div><strong id="hud-speed">000</strong><span id="hud-speed-unit">mph</span></div>
+        <div><strong id="hud-altitude">000</strong><span id="hud-altitude-unit">altitude · ft</span></div>
+        <div><strong id="hud-throttle">52<span>%</span></strong><span>throttle</span><div class="throttle-track"><i id="throttle-fill"></i></div></div>
+      </div>
+    </div>
+    <button id="camera-button" class="hud-camera"><span id="camera-label">Cockpit view</span><kbd>C</kbd></button>
+    <button id="gear-button" class="hud-camera hud-gear" aria-label="Landing gear" aria-pressed="false" hidden><span id="gear-label">Gear up</span><kbd>G</kbd></button>
+  </section>
+
+  <div id="modal-backdrop" class="modal-backdrop" hidden>
+    <section id="hangar" class="modal hangar" role="dialog" aria-modal="true" aria-labelledby="hangar-title" hidden>
+      <button class="close-button" data-close aria-label="Close plane selection">×</button>
+      <h2 id="hangar-title">Choose a plane</h2>
+      <p class="modal-copy">Jets for speed. Props for tighter turns. Each plane has its own Top 10 and personal best.</p>
+      <div id="aircraft-grid" class="aircraft-grid"></div>
+      <div class="hangar-detail">
+        <div><h3 id="hangar-name"></h3><p id="hangar-description"></p></div>
+        <div class="plane-stats"><div><span>Speed</span><i><b id="stat-speed"></b></i></div><div><span>Handling</span><i><b id="stat-agility"></b></i></div></div>
+      </div>
+      <div class="hangar-buttons"><button id="customize-aircraft" class="button secondary">Customize</button><button id="select-aircraft" class="button primary">Use this plane</button></div>
+    </section>
+
+    <section id="customize" class="modal customize-modal" role="dialog" aria-modal="true" aria-labelledby="customize-title" hidden>
+      <button class="close-button" data-close aria-label="Close customization">×</button>
+      <h2 id="customize-title">Make it yours</h2>
+      <p class="modal-copy">Stickers for the outside. A little personality inside. Cosmetic choices are saved for each plane.</p>
+      <div class="customize-layout">
+        <div class="customize-visual">
+          <div class="preview-tabs" aria-label="Customization preview"><button id="preview-plane" aria-pressed="true">Plane</button><button id="preview-cockpit" aria-pressed="false">Cockpit</button></div>
+          <canvas id="customize-preview" aria-label="Live 3D preview of your aircraft and cockpit"></canvas>
+          <p id="customize-preview-error" class="customize-status" hidden>Preview unavailable. Your choices will appear when you fly.</p>
+          <p id="customize-save" class="customize-status" role="status">Saved for this plane.</p>
+        </div>
+        <div class="customize-options">
+          <label class="customize-label" for="sticker-slot">Sticker placement</label><select id="sticker-slot"></select>
+          <div id="sticker-choices" class="sticker-choices" role="group" aria-label="Sticker design"></div>
+          <label class="customize-label" for="hanging-item">Hanging decoration</label><select id="hanging-item"><option value="none">None</option><option value="dice">Fuzzy dice</option><option value="mini-plane">Mini plane</option><option value="freshener">Tree air freshener</option></select>
+          <div id="charm-colors" class="charm-colors" role="group" aria-label="Decoration color"></div>
+          <label class="customize-label" for="dashboard-item">On the dashboard</label><select id="dashboard-item"><option value="none">Keep it clear</option><option value="photo">Mountain postcard</option><option value="duck">Lucky duck</option></select>
+          <label class="customize-label" for="cockpit-nameplate">Cockpit nameplate</label><input id="cockpit-nameplate" maxlength="16" placeholder="Ploon flight club" autocomplete="off">
+        </div>
+      </div>
+      <div class="customize-buttons"><button id="customize-reset" class="button secondary">Reset this plane</button><button class="button primary" data-close>Done</button></div>
+    </section>
+
+    <section id="settings" class="modal settings" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+      <button class="close-button" data-close aria-label="Close settings">×</button>
+      <h2 id="settings-title">Settings</h2>
+      <label class="setting-row"><span>Pilot name<small>Shown on the top 10.</small></span><input id="pilot-name-setting" type="text" maxlength="20" placeholder="Automatic" autocomplete="off"></label>
+      <label class="setting-row"><span>Volume<small>All sound.</small></span><span class="setting-input"><input id="volume-setting" type="range" min="0" max="1" step="0.05" aria-label="Audio volume"></span></label>
+      <label class="setting-row"><span>Music<small>Quiet ambient · 0 to mute.</small></span><input id="musicVolume-setting" type="range" min="0" max="1" step="0.05" aria-label="Music volume"></label>
+      <label class="setting-row"><span>Sensitivity</span><input id="sensitivity-setting" type="range" min="0.5" max="1.5" step="0.05" aria-label="Control sensitivity"></label>
+      <label class="setting-row"><span>Invert pitch</span><input id="invert-setting" type="checkbox" class="toggle"></label>
+      <label class="setting-row"><span>Show flight HUD<small>Toggle with H while flying.</small></span><input id="instruments-setting" type="checkbox" class="toggle"></label>
+      <label class="setting-row"><span>Units</span><select id="units-setting"><option value="imperial">mph · feet</option><option value="metric">km/h · meters</option></select></label>
+      <label class="setting-row"><span>Personal ghost<small>Race your best run.</small></span><input id="ghost-setting" type="checkbox" class="toggle"></label>
+      <label class="setting-row"><span>Graphics</span><select id="quality-setting"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+      <button class="button primary" data-close>Done</button>
+    </section>
+
+    <section id="help" class="modal help" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+      <button class="close-button" data-close aria-label="Close controls">×</button>
+      <h2 id="help-title">Controls</h2>
+      <div class="controls-list">
+        <div><span>Pitch down / up</span><span><kbd>W</kbd><kbd>S</kbd></span></div>
+        <div><span>Roll left / right</span><span><kbd>A</kbd><kbd>D</kbd></span></div>
+        <div><span>Yaw left / right</span><span><kbd>Q</kbd><kbd>E</kbd></span></div>
+        <div><span>Throttle up / down</span><span><kbd>Shift</kbd><kbd>Ctrl</kbd></span></div>
+        <div><span>Afterburner · fighters at 100%</span><kbd>Shift</kbd></div>
+        <div><span>Air drift / airbrake</span><kbd>Space</kbd></div>
+        <div><span>Cockpit / chase view</span><kbd>C</kbd></div>
+        <div><span>Flight HUD</span><kbd>H</kbd></div>
+        <div><span>Landing gear · free fly / ghost · race</span><kbd>G</kbd></div>
+        <div><span>Restart / pause</span><span><kbd>R</kbd><kbd>Esc</kbd></span></div>
+      </div>
+      <p class="help-note">Arrow keys work too. Keep holding Shift at full throttle for afterburner. Release it for tighter turns. Hold Space and yaw or bank to swing into a drift.</p>
+      <p class="help-note">Decorate your aircraft in the plane picker → Customize, or Customize while paused. Choices save separately for each plane.</p>
+      <p class="help-note">Find your fastest way to the single finish ring. Try low gaps, saddle crossings, climbs, and wide turns. Maverik follows its trench, ridge, valley, and escape objectives first. Stay below the race ceiling. Free flight has no ceiling.</p>
+      <p class="help-note">Steep climbs bleed speed, even on afterburner. If you stall, lower the nose and add power. Flaps deploy during a drift and at low speed; the other control surfaces follow your inputs.</p>
+      <p class="help-note">Free fly: G lowers the gear (fixed on the Cessna). Wait for it to lock. Land slowly on a runway or flat ground with level wings and a gentle descent; the HUD shows your speed limit. Space brakes after touchdown. Shift adds power; S lifts off.</p>
+      <button class="button primary" data-close>Done</button>
+    </section>
+
+    <section id="seed-modal" class="modal seed-modal" role="dialog" aria-modal="true" aria-labelledby="seed-title" hidden>
+      <button class="close-button" data-close aria-label="Close custom map">×</button>
+      <h2 id="seed-title">Custom map</h2>
+      <p class="modal-copy">The same seed opens the same world. Try <strong>Maverik</strong> for the trench run.</p>
+      <form id="seed-form">
+        <label class="seed-label" for="seed-input">Map seed</label>
+        <div class="seed-input-row"><input id="seed-input" maxlength="64" placeholder="sunday-morning" autocomplete="off" required><button id="random-seed" type="button" class="random-button">Random</button></div>
+        <div class="mode-selector"><label><input type="radio" name="seed-mode" value="race" checked><span>Race</span></label><label><input type="radio" name="seed-mode" value="free"><span>Free flight</span></label></div>
+        <button class="button primary" type="submit">Fly</button>
+      </form>
+    </section>
+
+    <section id="pause-modal" class="modal pause-modal" role="dialog" aria-modal="true" aria-labelledby="pause-title" hidden>
+      <h2 id="pause-title">Paused</h2>
+      <button id="resume-button" class="button primary">Resume</button>
+      <button id="retry-button" class="button secondary">Restart</button>
+      <button id="home-button" class="button secondary">Home</button>
+      <div class="dialog-links"><button id="pause-settings">Settings</button><button id="pause-help">Controls</button><button id="pause-customize">Customize</button><button id="share-button">Share link</button></div>
+    </section>
+
+    <section id="result-modal" class="modal result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title" hidden>
+      <h2 id="result-title">Flight complete</h2>
+      <p id="result-copy" class="modal-copy"></p>
+      <div id="result-stats" class="result-stats"></div>
+      <div id="result-ranking" class="result-ranking" hidden><p id="result-leaderboard" role="status"></p><button id="result-submit" class="leaderboard-refresh" hidden>Retry submission</button></div>
+      <button id="result-retry" class="button primary">Try again</button>
+      <button id="result-home" class="button secondary">Home</button>
+    </section>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <div id="unsupported" class="unsupported" hidden><span class="wordmark">ploon.</span><h1>WebGL required</h1><p id="unsupported-message">Try a recent Chrome, Firefox, Edge, or Safari with hardware acceleration enabled.</p></div>
+  <noscript><div class="unsupported"><h1>Ploon needs JavaScript.</h1><p>Enable JavaScript and reload to play.</p></div></noscript>
+</body>
+</html>
